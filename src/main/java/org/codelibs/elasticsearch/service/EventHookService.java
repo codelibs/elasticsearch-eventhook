@@ -107,6 +107,8 @@ public class EventHookService extends
             final Map<String, Object> vars = new HashMap<String, Object>();
             vars.put("event", event);
             vars.put("isMaster", isMaster);
+            vars.put("client", client);
+            vars.put("clusterService", clusterService);
             invokeScript(type, vars);
         }
     }
