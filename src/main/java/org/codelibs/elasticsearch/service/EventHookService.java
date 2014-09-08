@@ -5,6 +5,9 @@ import java.util.Map;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
@@ -54,6 +57,10 @@ public class EventHookService extends
 
     private int eventSize;
 
+    private Nodes nodes;
+
+    private Cluster cluster;
+
     @Inject
     public EventHookService(final Settings settings,
             final DynamicSettings dynamicSettings,
@@ -70,6 +77,8 @@ public class EventHookService extends
         eventSize = settings.getAsInt(CLUSTER_EVENTHOOK_SIZE,
                 DEFAULT_EVENTHOOK_SIZE);
 
+        nodes = new Nodes();
+        cluster = new Cluster();
     }
 
     @Override
@@ -104,20 +113,25 @@ public class EventHookService extends
                 logger.debug("Cluster Event: {}/{}: {}", index, type,
                         event.source());
             }
-            final Map<String, Object> vars = new HashMap<String, Object>();
-            vars.put("event", event);
-            vars.put("isMaster", isMaster);
-            vars.put("client", client);
-            vars.put("clusterService", clusterService);
-            invokeScript(type, vars);
+            invokeScript(type, event);
         }
     }
 
-    private void invokeScript(final String type, final Map<String, Object> vars) {
+    private Map<String, Object> createEventVars() {
+        final Map<String, Object> vars = new HashMap<String, Object>();
+        vars.put("isMaster", isMaster);
+        vars.put("client", client);
+        vars.put("clusterService", clusterService);
+        vars.put("nodes", nodes);
+        vars.put("cluster", cluster);
+        return vars;
+    }
+
+    private void invokeScript(final String type, final ClusterChangedEvent event) {
         client.admin().indices().prepareExists(index)
                 .execute(new ActionListener<IndicesExistsResponse>() {
                     @Override
-                    public void onResponse(IndicesExistsResponse response) {
+                    public void onResponse(final IndicesExistsResponse response) {
                         if (!response.isExists()) {
                             if (logger.isDebugEnabled()) {
                                 logger.debug(index + "/" + type
@@ -133,8 +147,10 @@ public class EventHookService extends
                                     @Override
                                     public void onResponse(
                                             final SearchResponse response) {
-                                        SearchHits hits = response.getHits();
-                                        long totalHits = hits.getTotalHits();
+                                        final SearchHits hits = response
+                                                .getHits();
+                                        final long totalHits = hits
+                                                .getTotalHits();
                                         if (totalHits == 0) {
                                             if (logger.isDebugEnabled()) {
                                                 logger.debug(
@@ -149,14 +165,18 @@ public class EventHookService extends
                                                     hits.getHits().length,
                                                     totalHits);
                                         }
-                                        for (SearchHit hit : hits.getHits()) {
-                                            Map<String, Object> source = hit
+                                        final Map<String, Object> vars = createEventVars();
+                                        vars.put("event", event);
+                                        for (final SearchHit hit : hits
+                                                .getHits()) {
+                                            final Map<String, Object> source = hit
                                                     .getSource();
-                                            Object lang = source.get("lang");
-                                            Object script = source
+                                            final Object lang = source
+                                                    .get("lang");
+                                            final Object script = source
                                                     .get("script");
-                                            ScriptType scriptType = getScriptType(source
-                                                    .get("scriptType"));
+                                            final ScriptType scriptType = getScriptType(source
+                                                    .get("script_type"));
                                             if (lang != null && script != null
                                                     && scriptType != null) {
                                                 try {
@@ -167,7 +187,7 @@ public class EventHookService extends
                                                     scriptService.execute(
                                                             compiledScript,
                                                             vars);
-                                                } catch (Exception e) {
+                                                } catch (final Exception e) {
                                                     logger.error(
                                                             "Failed to execute a script: \nlang: {}\nscript: {}\nscriptType: {}",
                                                             e, lang, script,
@@ -197,14 +217,14 @@ public class EventHookService extends
                     }
 
                     @Override
-                    public void onFailure(Throwable e) {
+                    public void onFailure(final Throwable e) {
                         logger.error("Failed to check if {} exists.", e, index);
                     }
                 });
 
     }
 
-    protected String getEventType(String source) {
+    protected String getEventType(final String source) {
         if (source != null && source.length() > 0) {
             return source.replaceAll("[\\(\\[].*", "").trim()
                     .replaceAll("[\\s\\-]", "_");
@@ -212,7 +232,7 @@ public class EventHookService extends
         return EVENT_TYPE_UNKNOWN;
     }
 
-    private static ScriptType getScriptType(Object scriptType) {
+    private static ScriptType getScriptType(final Object scriptType) {
         if (scriptType == null) {
             return ScriptType.INLINE;
         } else if ("INDEXED".equalsIgnoreCase(scriptType.toString())) {
@@ -231,11 +251,15 @@ public class EventHookService extends
     @Override
     public void onMaster() {
         isMaster = true;
+
+        invokeScript("on_master", null);
     }
 
     @Override
     public void offMaster() {
         isMaster = false;
+
+        invokeScript("off_master", null);
     }
 
     @Override
@@ -243,4 +267,45 @@ public class EventHookService extends
         return ThreadPool.Names.MANAGEMENT;
     }
 
+    public class Nodes {
+        public NodeInfo[] nodeInfo(final String... nodesIds) {
+            final NodesInfoResponse response = client.admin().cluster()
+                    .prepareNodesInfo(nodesIds).execute().actionGet();
+            return response.getNodes();
+        }
+    }
+
+    public class Cluster {
+        public String getPersistentSettings(final String key) {
+            return clusterService.state().metaData().persistentSettings()
+                    .get(key);
+        }
+
+        public boolean setPersistentSettings(final String key,
+                final String value) {
+            final ClusterUpdateSettingsResponse response = client
+                    .admin()
+                    .cluster()
+                    .prepareUpdateSettings()
+                    .setPersistentSettings(
+                            "{\"" + key + "\":\"" + value + "\"}").execute()
+                    .actionGet();
+            return response.isAcknowledged();
+        }
+
+        public String setTransientSettings(final String key) {
+            return clusterService.state().metaData().transientSettings()
+                    .get(key);
+        }
+
+        public boolean setTransientSettings(final String key, final String value) {
+            final ClusterUpdateSettingsResponse response = client
+                    .admin()
+                    .cluster()
+                    .prepareUpdateSettings()
+                    .setTransientSettings("{\"" + key + "\":\"" + value + "\"}")
+                    .execute().actionGet();
+            return response.isAcknowledged();
+        }
+    }
 }

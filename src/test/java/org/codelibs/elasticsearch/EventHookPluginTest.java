@@ -41,9 +41,18 @@ public class EventHookPluginTest extends TestCase {
 
     public void test_runCluster() throws Exception {
 
-        String eventIndex = ".eventhook";
+        final String eventIndex = ".eventhook";
         runner.createIndex(eventIndex, null);
         runner.ensureYellow(eventIndex);
+
+        runner.insert(
+                eventIndex,
+                "on_master",
+                "1",
+                "{\"lang\":\"groovy\","
+                        + "\"script\":\"if(nodes.nodeInfo().length==2)"
+                        + "cluster.setTransientSettings(\\\"cluster.routing.allocation.enable\\\",\\\"none\\\")\","
+                        + "\"script_type\":\"inline\"}");
 
         final String index = "test_index";
         final String type = "test_type";
@@ -115,14 +124,15 @@ public class EventHookPluginTest extends TestCase {
         // optimize
         runner.optimize(false);
 
-        // close 1 node
-        final Node node1 = runner.node();
-        node1.close();
-        final Node node2 = runner.node();
-        assertTrue(node1 != node2);
-        assertTrue(runner.getNode(0).isClosed());
-        assertFalse(runner.getNode(1).isClosed());
-        assertFalse(runner.getNode(2).isClosed());
+        // close master node
+        final Node masterNode = runner.masterNode();
+        masterNode.close();
+
+        // wait
+        Thread.sleep(5000L);
+
+        assertEquals("none", runner.clusterService().state().metaData()
+                .transientSettings().get("cluster.routing.allocation.enable"));
 
     }
 }
