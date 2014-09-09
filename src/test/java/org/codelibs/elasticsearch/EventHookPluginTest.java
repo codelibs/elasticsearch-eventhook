@@ -50,7 +50,7 @@ public class EventHookPluginTest extends TestCase {
                 "all",
                 "print_event",
                 "{\"priority\":1,\"lang\":\"groovy\","
-                        + "\"script\":\"println(\\\"EVENT[\\\"+cluster.getLocalNode().name()+\\\"]:\\\"+eventType+\\\" => \\\"+event.source())\","
+                        + "\"script\":\"logger.info(\\\"[\\\"+cluster.getLocalNode().name()+\\\"]:\\\"+eventType+\\\" => \\\"+event.source())\","
                         + "\"script_type\":\"inline\"}");
         runner.insert(
                 eventIndex,

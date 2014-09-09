@@ -25,6 +25,8 @@ import org.elasticsearch.cluster.settings.DynamicSettings;
 import org.elasticsearch.common.collect.ImmutableList;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.CompiledScript;
@@ -43,6 +45,8 @@ public class EventHookService extends
 
     private static final String DEFAULT_EVENTHOOK_INDEX = ".eventhook";
 
+    private static final String DEFAULT_EVENTHOOK_LOGGER = "org.codelibs.eventhook";
+
     private static final int DEFAULT_EVENTHOOK_SIZE = 100;
 
     private static final String CLUSTER_EVENTHOOK_INDEX = "cluster.eventhook.index";
@@ -50,6 +54,8 @@ public class EventHookService extends
     private static final String CLUSTER_EVENTHOOK_SIZE = "cluster.eventhook.size";
 
     private static final String CLUSTER_EVENTHOOK_ENABLE = "cluster.eventhook.enable";
+
+    private static final String CLUSTER_EVENTHOOK_LOGGER = "cluster.eventhook.logger";
 
     private ClusterService clusterService;
 
@@ -64,6 +70,8 @@ public class EventHookService extends
     private String index;
 
     private int eventSize;
+
+    private ESLogger scriptLogger;
 
     @Inject
     public EventHookService(final Settings settings,
@@ -82,6 +90,9 @@ public class EventHookService extends
         eventSize = settings.getAsInt(CLUSTER_EVENTHOOK_SIZE,
                 DEFAULT_EVENTHOOK_SIZE);
 
+        final String loggerName = settings.get(CLUSTER_EVENTHOOK_LOGGER,
+                DEFAULT_EVENTHOOK_LOGGER);
+        scriptLogger = ESLoggerFactory.getLogger(loggerName);
     }
 
     @Override
@@ -127,6 +138,7 @@ public class EventHookService extends
         vars.put("clusterService", clusterService);
         vars.put("nodes", new Nodes());
         vars.put("cluster", new Cluster());
+        vars.put("logger", scriptLogger);
         return vars;
     }
 
