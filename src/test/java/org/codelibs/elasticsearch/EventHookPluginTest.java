@@ -25,7 +25,7 @@ public class EventHookPluginTest extends TestCase {
             @Override
             public void build(final int number, final Builder settingsBuilder) {
             }
-        }).build(new String[] { "-numOfNode", "3", "-indexStoreType", "ram" });
+        }).build(new String[] { "-numOfNode", "5", "-indexStoreType", "ram" });
 
         // wait for yellow status
         runner.ensureYellow();
@@ -47,11 +47,28 @@ public class EventHookPluginTest extends TestCase {
 
         runner.insert(
                 eventIndex,
-                "on_master",
-                "1",
-                "{\"lang\":\"groovy\","
-                        + "\"script\":\"if(nodes.nodeInfo().length==2)"
-                        + "cluster.setTransientSettings(\\\"cluster.routing.allocation.enable\\\",\\\"none\\\")\","
+                "all",
+                "print_event",
+                "{\"priority\":1,\"lang\":\"groovy\","
+                        + "\"script\":\"println(\\\"EVENT[\\\"+cluster.getLocalNode().name()+\\\"]:\\\"+eventType+\\\" => \\\"+event.source())\","
+                        + "\"script_type\":\"inline\"}");
+        runner.insert(
+                eventIndex,
+                "routing_table_updater",
+                "allocation_disable",
+                "{\"priority\":2,\"lang\":\"groovy\","
+                        + "\"script\":\"if(nodes.nodeInfo().length==4){"
+                        + "cluster.setTransientSettings(\\\"cluster.routing.allocation.enable\\\",\\\"none\\\");"
+                        + "println(\\\"EVENT[\\\"+cluster.getLocalNode().name()+\\\"]: allocation disabled\\\")}\","
+                        + "\"script_type\":\"inline\"}");
+        runner.insert(
+                eventIndex,
+                "zen_disco_node_left",
+                "allocation_enable",
+                "{\"priority\":2,\"lang\":\"groovy\","
+                        + "\"script\":\"if(nodes.nodeInfo().length==3){"
+                        + "cluster.setTransientSettings(\\\"cluster.routing.allocation.enable\\\",\\\"all\\\");"
+                        + "println(\\\"EVENT[\\\"+cluster.getLocalNode().name()+\\\"]: allocation enabled\\\")}\","
                         + "\"script_type\":\"inline\"}");
 
         final String index = "test_index";
@@ -132,6 +149,16 @@ public class EventHookPluginTest extends TestCase {
         Thread.sleep(5000L);
 
         assertEquals("none", runner.clusterService().state().metaData()
+                .transientSettings().get("cluster.routing.allocation.enable"));
+
+        // close master node
+        final Node nonMasterNode = runner.nonMasterNode();
+        nonMasterNode.close();
+
+        // wait
+        Thread.sleep(5000L);
+
+        assertEquals("all", runner.clusterService().state().metaData()
                 .transientSettings().get("cluster.routing.allocation.enable"));
 
     }

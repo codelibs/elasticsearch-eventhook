@@ -104,5 +104,11 @@
 			<version>2.3.2</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.lucene</groupId>
+			<artifactId>lucene-expressions</artifactId>
+			<version>4.9.0</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>
