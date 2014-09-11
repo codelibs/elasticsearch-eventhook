@@ -144,6 +144,7 @@ public class EventHookPluginTest extends TestCase {
         // close master node
         final Node masterNode = runner.masterNode();
         masterNode.close();
+        int masterNodeIndex = runner.getNodeIndex(masterNode);
 
         // wait
         Thread.sleep(5000L);
@@ -154,12 +155,23 @@ public class EventHookPluginTest extends TestCase {
         // close master node
         final Node nonMasterNode = runner.nonMasterNode();
         nonMasterNode.close();
+        int nonMasterNodeIndex = runner.getNodeIndex(masterNode);
 
         // wait
         Thread.sleep(5000L);
 
         assertEquals("all", runner.clusterService().state().metaData()
                 .transientSettings().get("cluster.routing.allocation.enable"));
+
+        assertTrue(runner.startNode(masterNodeIndex));
+
+        // wait
+        Thread.sleep(5000L);
+
+        assertTrue(runner.startNode(nonMasterNodeIndex));
+
+        // wait
+        Thread.sleep(5000L);
 
     }
 }
