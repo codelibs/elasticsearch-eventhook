@@ -194,12 +194,15 @@ public class EventHookService extends
                                                                         compiledScript,
                                                                         vars)
                                                                 .run();
-                                                        logger.info(
-                                                                "{}:{} => {}",
-                                                                langStr,
-                                                                scriptStr,
-                                                                result != null ? result
-                                                                        : "none");
+                                                        if (logger
+                                                                .isDebugEnabled()) {
+                                                            logger.debug(
+                                                                    "{}:{} => {}",
+                                                                    langStr,
+                                                                    scriptStr,
+                                                                    result != null ? result
+                                                                            : "none");
+                                                        }
                                                     } catch (final Exception e) {
                                                         logger.error(
                                                                 "Failed to execute a script: \nlang: {}\nscript: {}\nscriptType: {}",

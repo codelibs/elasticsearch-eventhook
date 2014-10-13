@@ -5,6 +5,8 @@ import junit.framework.TestCase;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.ImmutableSettings.Builder;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -13,6 +15,9 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.search.sort.SortBuilders;
 
 public class EventHookPluginTest extends TestCase {
+
+    private static final ESLogger logger = Loggers
+            .getLogger(EventHookPluginTest.class);
 
     private ElasticsearchClusterRunner runner;
 
@@ -50,11 +55,11 @@ public class EventHookPluginTest extends TestCase {
                 "all",
                 "print_event",
                 "{\"priority\":1,\"lang\":\"groovy\","
-                        + "\"script\":\"logger.info(\\\"[\\\"+cluster.getLocalNode().name()+\\\"]:\\\"+eventType+\\\" => \\\"+event.source())\","
+                        + "\"script\":\"logger.info(\\\"CLUSTER_EVENT[\\\"+cluster.getLocalNode().name()+\\\"]:\\\"+eventType+\\\" => \\\"+event.source())\","
                         + "\"script_type\":\"inline\"}");
         runner.insert(
                 eventIndex,
-                "routing_table_updater",
+                "on_master",
                 "allocation_disable",
                 "{\"priority\":2,\"lang\":\"groovy\","
                         + "\"script\":\"if(nodes.nodeInfo().length==4){"
@@ -70,6 +75,7 @@ public class EventHookPluginTest extends TestCase {
                         + "cluster.setTransientSettings(\\\"cluster.routing.allocation.enable\\\",\\\"all\\\");"
                         + "println(\\\"EVENT[\\\"+cluster.getLocalNode().name()+\\\"]: allocation enabled\\\")}\","
                         + "\"script_type\":\"inline\"}");
+        runner.flush();
 
         final String index = "test_index";
         final String type = "test_type";
@@ -143,8 +149,9 @@ public class EventHookPluginTest extends TestCase {
 
         // close master node
         final Node masterNode = runner.masterNode();
-        masterNode.close();
         int masterNodeIndex = runner.getNodeIndex(masterNode);
+        logger.info("Closing masterNode[{}]", masterNodeIndex);
+        masterNode.close();
 
         // wait
         Thread.sleep(5000L);
@@ -154,8 +161,9 @@ public class EventHookPluginTest extends TestCase {
 
         // close master node
         final Node nonMasterNode = runner.nonMasterNode();
+        int nonMasterNodeIndex = runner.getNodeIndex(nonMasterNode);
+        logger.info("Closing nonMasterNode[{}]", nonMasterNodeIndex);
         nonMasterNode.close();
-        int nonMasterNodeIndex = runner.getNodeIndex(masterNode);
 
         // wait
         Thread.sleep(5000L);
@@ -163,11 +171,13 @@ public class EventHookPluginTest extends TestCase {
         assertEquals("all", runner.clusterService().state().metaData()
                 .transientSettings().get("cluster.routing.allocation.enable"));
 
+        logger.info("Starting masterNode[{}]", masterNodeIndex);
         assertTrue(runner.startNode(masterNodeIndex));
 
         // wait
         Thread.sleep(5000L);
 
+        logger.info("Starting nonMasterNode[{}]", nonMasterNodeIndex);
         assertTrue(runner.startNode(nonMasterNodeIndex));
 
         // wait
