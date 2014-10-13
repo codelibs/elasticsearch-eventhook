@@ -7,9 +7,10 @@ Event Hook Plugin provides a feature to invoke your script on Elasticsearch Clus
 
 ## Version
 
-| Taste     | Elasticsearch |
+| Version   | Elasticsearch |
 |:---------:|:-------------:|
-| master    | 1.3.X         |
+| master    | 1.4.X         |
+| 1.4.0     | 1.4.0.Beta1   |
 | 1.3.0     | 1.3.2         |
 
 ### Issues/Questions
@@ -21,7 +22,7 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-eventhook/issue
 
 ### Install DynaRank Plugin
 
-    $ $ES_HOME/bin/plugin --install org.codelibs/elasticsearch-eventhook/1.3.0
+    $ $ES_HOME/bin/plugin --install org.codelibs/elasticsearch-eventhook/1.4.0
 
 ## Getting Started
 
