@@ -1,4 +1,4 @@
-package org.codelibs.elasticsearch.service;
+package org.codelibs.elasticsearch.eventhook.service;
 
 import java.util.HashMap;
 import java.util.List;
@@ -180,13 +180,26 @@ public class EventHookService extends
                                                 @Override
                                                 public void run() {
                                                     try {
-                                                        final CompiledScript compiledScript = scriptService.compile(
-                                                                lang.toString(),
-                                                                script.toString(),
-                                                                scriptType);
-                                                        scriptService.execute(
-                                                                compiledScript,
-                                                                vars);
+                                                        String langStr = lang
+                                                                .toString();
+                                                        String scriptStr = script
+                                                                .toString();
+                                                        final CompiledScript compiledScript = scriptService
+                                                                .compile(
+                                                                        langStr,
+                                                                        scriptStr,
+                                                                        scriptType);
+                                                        Object result = scriptService
+                                                                .executable(
+                                                                        compiledScript,
+                                                                        vars)
+                                                                .run();
+                                                        logger.info(
+                                                                "{}:{} => {}",
+                                                                langStr,
+                                                                scriptStr,
+                                                                result != null ? result
+                                                                        : "none");
                                                     } catch (final Exception e) {
                                                         logger.error(
                                                                 "Failed to execute a script: \nlang: {}\nscript: {}\nscriptType: {}",

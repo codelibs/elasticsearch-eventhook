@@ -1,9 +1,9 @@
-package org.codelibs.elasticsearch;
+package org.codelibs.elasticsearch.eventhook;
 
 import java.util.Collection;
 
-import org.codelibs.elasticsearch.module.EventHookModule;
-import org.codelibs.elasticsearch.service.EventHookService;
+import org.codelibs.elasticsearch.eventhook.module.EventHookModule;
+import org.codelibs.elasticsearch.eventhook.service.EventHookService;
 import org.elasticsearch.common.collect.Lists;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;

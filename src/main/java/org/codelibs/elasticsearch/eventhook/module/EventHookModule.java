@@ -1,6 +1,6 @@
-package org.codelibs.elasticsearch.module;
+package org.codelibs.elasticsearch.eventhook.module;
 
-import org.codelibs.elasticsearch.service.EventHookService;
+import org.codelibs.elasticsearch.eventhook.service.EventHookService;
 import org.elasticsearch.common.inject.AbstractModule;
 
 public class EventHookModule extends AbstractModule {

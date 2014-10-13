@@ -1,4 +1,4 @@
-package org.codelibs.elasticsearch;
+package org.codelibs.elasticsearch.eventhook;
 
 import junit.framework.TestCase;
 
